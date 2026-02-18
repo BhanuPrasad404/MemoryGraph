@@ -29,7 +29,7 @@ const app = express();
 
 const httpserver = createServer(app);
 
-//  Allow both local and production frontend URLs
+// Allow both local and production frontend URLs
 const allowedOrigins = [
   'http://localhost:3000',
   'https://memory-graph-frontend-r18d.vercel.app'
@@ -44,7 +44,7 @@ const io = new Server(httpserver, {
 
 initIO(io);
 
-//  GLOBAL RATE LIMIT (for all routes) 
+// GLOBAL RATE LIMIT (for all routes) 
 app.use(globalLimiter);
 
 // Add this at the TOP of your routes (before CORS even)
@@ -59,7 +59,7 @@ app.use('/api/debug', (req, res, next) => {
   });
 });
 
-//CORS middleware with multiple origins
+// CORS middleware with multiple origins - FIXED
 app.use(cors({
   origin: [
     "https://memory-graph-frontend-r18d.vercel.app",
@@ -69,9 +69,8 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-Client-Data"]
 }));
-app.options("*", cors());
-// Also handle preflight requests
-//app.options('*', cors()); // Allow all preflight requests
+app.options("*", cors()); // Handle preflight requests
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -98,12 +97,13 @@ io.on('connection', (socket) => {
 
 // Make io available to other modules
 app.set('io', io);
+
 // SPECIFIC RATE LIMITS PER ROUTE 
 
 // attempts/15min (prevents brute force)
 app.use('/api/auth', authLimiter, authRoutes);
 
-//  20 files/hour (prevents storage abuse)  
+// 20 files/hour (prevents storage abuse)  
 app.use('/api/upload', authMiddleware, uploadLimiter, uploadRoutes);
 
 // Chat routes: 100 queries/hour (prevents AI cost abuse)
@@ -116,8 +116,6 @@ app.use('/api/documents', authMiddleware, documentRoutes);
 app.use('/api/graph', authMiddleware, graphRoutes);
 app.use('/api/user', authMiddleware, require('./routes/user'));
 app.use('/api/auth/reset-password', resetPasswordRoute);
-
-
 app.use('/api/auth/forgot-password', forgotPasswordRoute);
 
 
@@ -137,7 +135,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-
+// ========== ERROR HANDLING ==========
 app.use((err, req, res, next) => {
   console.error('Server Error:', err);
   res.status(500).json({
@@ -146,14 +144,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ========== 5. START SERVER ==========
+// ========== START SERVER ==========
 const PORT = process.env.PORT || 5000;
-httpserver.listen(PORT, () => {  // ← CHANGED FROM app.listen TO httpserver.listen
+httpserver.listen(PORT, () => {
   console.log(`
   🚀 MemoryGraph AI Backend Started!
   📍 Port: ${PORT}
   🌐 Environment: ${process.env.NODE_ENV}
-  🔌 WebSocket: Ready on ws://localhost:${PORT}  // ← ADD THIS LINE
+  🔌 WebSocket: Ready on ws://localhost:${PORT}
   
   ⚡ Rate Limits Configured:
   - All routes: 1000 requests/15min
