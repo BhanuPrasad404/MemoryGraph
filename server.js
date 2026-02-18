@@ -1,5 +1,17 @@
 // server.js - WITH SPECIFIC RATE LIMITING PER ROUTE
 require('dotenv').config();
+
+// Add error catching at the very top
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('❌ Unhandled Rejection:', err);
+  process.exit(1);
+});
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -27,6 +39,12 @@ const forgotPasswordRoute = require('./routes/forgot-password');
 
 const app = express();
 
+// Check critical environment variables
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+  console.error('❌ Missing required environment variables');
+  process.exit(1);
+}
+
 const httpserver = createServer(app);
 
 // Allow both local and production frontend URLs
@@ -40,14 +58,14 @@ const io = new Server(httpserver, {
     origin: allowedOrigins,
     credentials: true
   }
-})
+});
 
 initIO(io);
 
 // GLOBAL RATE LIMIT (for all routes) 
 app.use(globalLimiter);
 
-// Add this at the TOP of your routes (before CORS even)
+// Debug route
 app.use('/api/debug', (req, res, next) => {
   console.log('🐛 DEBUG Route hit!');
   console.log('Headers:', req.headers);
@@ -59,7 +77,7 @@ app.use('/api/debug', (req, res, next) => {
   });
 });
 
-// CORS middleware with multiple origins - FIXED
+// CORS middleware
 app.use(cors({
   origin: [
     "https://memory-graph-frontend-r18d.vercel.app",
@@ -69,22 +87,20 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-Client-Data"]
 }));
-app.options("*", cors()); // Handle preflight requests
+app.options("*", cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-
+// WebSocket events
 io.on('connection', (socket) => {
   console.log('🔌 WebSocket client connected:', socket.id);
 
-  // User joins their personal room
   socket.on('join-user-room', (userId) => {
     socket.join(`user-${userId}`);
     console.log(`User ${userId} joined WebSocket room`);
   });
 
-  // Document-specific room (for real-time progress)
   socket.on('join-document-room', (documentId) => {
     socket.join(`document-${documentId}`);
     console.log(`Joined document room: ${documentId}`);
@@ -95,30 +111,19 @@ io.on('connection', (socket) => {
   });
 });
 
-// Make io available to other modules
 app.set('io', io);
 
-// SPECIFIC RATE LIMITS PER ROUTE 
-
-// attempts/15min (prevents brute force)
+// Routes with rate limiting
 app.use('/api/auth', authLimiter, authRoutes);
-
-// 20 files/hour (prevents storage abuse)  
 app.use('/api/upload', authMiddleware, uploadLimiter, uploadRoutes);
-
-// Chat routes: 100 queries/hour (prevents AI cost abuse)
 app.use('/api/chat', authMiddleware, chatLimiter, chatRoutes);
-
-// Document routes: Use global limit only
 app.use('/api/documents', authMiddleware, documentRoutes);
-
-// Graph routes: Use global limit only  
 app.use('/api/graph', authMiddleware, graphRoutes);
 app.use('/api/user', authMiddleware, require('./routes/user'));
 app.use('/api/auth/reset-password', resetPasswordRoute);
 app.use('/api/auth/forgot-password', forgotPasswordRoute);
 
-
+// Health checks
 app.get('/', (req, res) => {
   res.json({
     message: 'MemoryGraph AI Backend is running!',
@@ -135,7 +140,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// ========== ERROR HANDLING ==========
+// Error handling
 app.use((err, req, res, next) => {
   console.error('Server Error:', err);
   res.status(500).json({
@@ -144,7 +149,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ========== START SERVER ==========
+// Start server
 const PORT = process.env.PORT || 5000;
 httpserver.listen(PORT, () => {
   console.log(`
