@@ -59,23 +59,17 @@ app.use('/api/debug', (req, res, next) => {
   });
 });
 
-// ✅ FIXED: CORS middleware with multiple origins
+//CORS middleware with multiple origins
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, etc)
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  },
+  origin: [
+    "https://memory-graph-frontend-r18d.vercel.app",
+    "http://localhost:3000"
+  ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-Client-Data"]
 }));
-
+app.options("*", cors());
 // Also handle preflight requests
 //app.options('*', cors()); // Allow all preflight requests
 app.use(express.json());
@@ -143,7 +137,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// ========== 4. ERROR HANDLING ==========
+
 app.use((err, req, res, next) => {
   console.error('Server Error:', err);
   res.status(500).json({
