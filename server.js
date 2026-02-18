@@ -29,10 +29,10 @@ const app = express();
 
 const httpserver = createServer(app);
 
-// ✅ FIXED: Allow both local and production frontend URLs
+//  Allow both local and production frontend URLs
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://memory-graph-frontend-2q7l.vercel.app'
+  'https://memory-graph-frontend-r18d.vercel.app'
 ];
 
 const io = new Server(httpserver, {
