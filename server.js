@@ -29,9 +29,15 @@ const app = express();
 
 const httpserver = createServer(app);
 
+// ✅ FIXED: Allow both local and production frontend URLs
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://memory-graph-frontend-2q7l.vercel.app'
+];
+
 const io = new Server(httpserver, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: allowedOrigins,
     credentials: true
   }
 })
@@ -53,12 +59,21 @@ app.use('/api/debug', (req, res, next) => {
   });
 });
 
-// Middleware
+// ✅ FIXED: CORS middleware with multiple origins
 app.use(cors({
-  origin: 'http://localhost:3000', // Frontend URL
-  credentials: true, // ← THIS IS CRITICAL
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'] // ← MUST include Authorization
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Also handle preflight requests
