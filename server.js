@@ -65,19 +65,8 @@ initIO(io);
 // GLOBAL RATE LIMIT (for all routes) 
 app.use(globalLimiter);
 
-// Debug route
-app.use('/api/debug', (req, res, next) => {
-  console.log('🐛 DEBUG Route hit!');
-  console.log('Headers:', req.headers);
-  console.log('Auth:', req.headers.authorization);
-  res.json({
-    received: true,
-    headers: req.headers,
-    auth: req.headers.authorization
-  });
-});
-
-// CORS middleware
+// ============ FIXED ORDER ============
+// 1. CORS FIRST - ALWAYS FIRST!
 app.use(cors({
   origin: [
     "https://memory-graph-frontend-r18d.vercel.app",
@@ -88,11 +77,11 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-Client-Data"]
 }));
 
-
+// 2. Body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// WebSocket events
+// 3. WebSocket events
 io.on('connection', (socket) => {
   console.log('🔌 WebSocket client connected:', socket.id);
 
@@ -113,7 +102,7 @@ io.on('connection', (socket) => {
 
 app.set('io', io);
 
-// Routes with rate limiting
+// 4. Routes with rate limiting
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/upload', authMiddleware, uploadLimiter, uploadRoutes);
 app.use('/api/chat', authMiddleware, chatLimiter, chatRoutes);
@@ -123,7 +112,19 @@ app.use('/api/user', authMiddleware, require('./routes/user'));
 app.use('/api/auth/reset-password', resetPasswordRoute);
 app.use('/api/auth/forgot-password', forgotPasswordRoute);
 
-// Health checks
+// 5. Debug route - MOVED TO END (or comment out if not needed)
+// app.use('/api/debug', (req, res, next) => {
+//   console.log('🐛 DEBUG Route hit!');
+//   console.log('Headers:', req.headers);
+//   console.log('Auth:', req.headers.authorization);
+//   res.json({
+//     received: true,
+//     headers: req.headers,
+//     auth: req.headers.authorization
+//   });
+// });
+
+// 6. Health checks
 app.get('/', (req, res) => {
   res.json({
     message: 'MemoryGraph AI Backend is running!',
@@ -140,7 +141,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Error handling
+// 7. Error handling (ALWAYS LAST)
 app.use((err, req, res, next) => {
   console.error('Server Error:', err);
   res.status(500).json({
